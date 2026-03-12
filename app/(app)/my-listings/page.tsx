@@ -224,7 +224,7 @@ export default function MyListingsPage() {
           </div>
         </div>
 
-        <Link href="/list-property">
+        <Link href="/add-property">
           <button className="w-full bg-primary text-primary-foreground font-semibold py-3 rounded-2xl">
             List Your Property
           </button>
