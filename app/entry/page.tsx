@@ -1,8 +1,58 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { auth } from "@/firebase/firebaseConfig";
+import {
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  OAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  AuthProvider,
+} from "firebase/auth";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [loadingProvider, setLoadingProvider] = useState<"google" | "facebook" | "apple" | "">("");
+
+  const loginWithProvider = async (provider: AuthProvider, providerName: "google" | "facebook" | "apple") => {
+    setError("");
+    setLoadingProvider(providerName);
+
+    try {
+      await signInWithPopup(auth, provider);
+      router.push("/");
+    } catch (err: any) {
+      console.error(`${providerName} sign in error:`, err); // eslint-disable-line no-console
+      if (err.code === "auth/operation-not-supported-in-this-environment" || err.code === "auth/operation-not-allowed") {
+        try {
+          await signInWithRedirect(auth, provider);
+        } catch (redirectErr: any) {
+          console.error("Redirect sign in failed:", redirectErr);
+          setError(redirectErr.message || "Social login failed. Please try again.");
+        }
+      } else if (err.code === "auth/popup-closed-by-user") {
+        setError("Popup closed before we could sign you in. Please try again.");
+      } else {
+        setError(err.message || "Social login failed. Please try again.");
+      }
+    } finally {
+      setLoadingProvider("");
+    }
+  };
+
+  const signInWithGoogle = () => loginWithProvider(new GoogleAuthProvider(), "google");
+  const signInWithFacebook = () => loginWithProvider(new FacebookAuthProvider(), "facebook");
+  const signInWithApple = () => {
+    const appleProvider = new OAuthProvider("apple.com");
+    appleProvider.addScope("email");
+    appleProvider.addScope("name");
+    return loginWithProvider(appleProvider, "apple");
+  };
+
   return (
     <div
       style={{
@@ -35,6 +85,23 @@ export default function LoginPage() {
         Home
       </h1>
 
+      {error && (
+        <div
+          style={{
+            width: "280px",
+            padding: "12px",
+            marginBottom: "16px",
+            backgroundColor: "#3d2323",
+            color: "#ff6b6b",
+            borderRadius: "8px",
+            fontSize: "13px",
+            textAlign: "center",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       {/* Golden Login Button wrapped in Link */}
       <Link href="/login">
         <button
@@ -59,18 +126,22 @@ export default function LoginPage() {
       <div style={{ width: "240px", display: "flex", flexDirection: "column", gap: "12px" }}>
         {/* Google */}
         <button
+          onClick={signInWithGoogle}
+          disabled={loadingProvider !== ""}
           style={{
             width: "100%",
             display: "flex",
             alignItems: "center",
-            backgroundColor: "#f5f5f0",
+            justifyContent: "center",
+            backgroundColor: loadingProvider === "google" ? "#d6d6cf" : "#f5f5f0",
             color: "#1a1a1a",
             fontWeight: 500,
             fontSize: "14px",
             padding: "16px 24px",
             borderRadius: "9999px",
             border: "none",
-            cursor: "pointer",
+            cursor: loadingProvider === "" ? "pointer" : "not-allowed",
+            opacity: loadingProvider === "" ? 1 : 0.7,
           }}
         >
           <svg style={{ width: "20px", height: "20px", marginRight: "16px" }} viewBox="0 0 24 24">
@@ -96,18 +167,22 @@ export default function LoginPage() {
 
         {/* Facebook */}
         <button
+          onClick={signInWithFacebook}
+          disabled={loadingProvider !== ""}
           style={{
             width: "100%",
             display: "flex",
             alignItems: "center",
-            backgroundColor: "#f5f5f0",
+            justifyContent: "center",
+            backgroundColor: loadingProvider === "facebook" ? "#d6d6cf" : "#f5f5f0",
             color: "#1a1a1a",
             fontWeight: 500,
             fontSize: "14px",
             padding: "16px 24px",
             borderRadius: "9999px",
             border: "none",
-            cursor: "pointer",
+            cursor: loadingProvider === "" ? "pointer" : "not-allowed",
+            opacity: loadingProvider === "" ? 1 : 0.7,
           }}
         >
           <svg style={{ width: "20px", height: "20px", marginRight: "16px" }} viewBox="0 0 24 24" fill="#1877F2">
@@ -118,18 +193,22 @@ export default function LoginPage() {
 
         {/* Apple */}
         <button
+          onClick={signInWithApple}
+          disabled={loadingProvider !== ""}
           style={{
             width: "100%",
             display: "flex",
             alignItems: "center",
-            backgroundColor: "#f5f5f0",
+            justifyContent: "center",
+            backgroundColor: loadingProvider === "apple" ? "#d6d6cf" : "#f5f5f0",
             color: "#1a1a1a",
             fontWeight: 500,
             fontSize: "14px",
             padding: "16px 24px",
             borderRadius: "9999px",
             border: "none",
-            cursor: "pointer",
+            cursor: loadingProvider === "" ? "pointer" : "not-allowed",
+            opacity: loadingProvider === "" ? 1 : 0.7,
           }}
         >
           <svg style={{ width: "20px", height: "20px", marginRight: "16px" }} viewBox="0 0 24 24" fill="#000000">
