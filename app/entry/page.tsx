@@ -2,29 +2,83 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { auth } from "@/firebase/firebaseConfig";
+import { useEffect, useState } from "react";
+import { auth, db } from "@/firebase/firebaseConfig";
 import {
   GoogleAuthProvider,
   FacebookAuthProvider,
   OAuthProvider,
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   AuthProvider,
+  User,
+  UserCredential,
 } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loadingProvider, setLoadingProvider] = useState<"google" | "facebook" | "apple" | "">("");
 
+  const createOrUpdateFirestoreUser = async (user: User) => {
+    const userRef = doc(db, "users", user.uid);
+    const userSnapshot = await getDoc(userRef);
+
+    const data = {
+      username: user.displayName || "",
+      phone: user.phoneNumber || "",
+      email: user.email || "",
+      profilePictureUrl: user.photoURL || "",
+      active: true,
+      banned: false,
+      premium: false,
+      verified: true,
+      lastLogin: serverTimestamp(),
+    };
+
+    if (!userSnapshot.exists()) {
+      await setDoc(userRef, {
+        ...data,
+        createdTimestamp: serverTimestamp(),
+      });
+    } else {
+      await setDoc(userRef, data, { merge: true });
+    }
+  };
+
+  const handleSignedInUser = async (credential: UserCredential) => {
+    const user = credential.user;
+
+    await createOrUpdateFirestoreUser(user);
+    router.push("/");
+  };
+
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          await createOrUpdateFirestoreUser(result.user);
+          router.push("/");
+        }
+      } catch (err: any) {
+        console.error("getRedirectResult error:", err);
+        setError(err.message || "Redirect login failed. Please try again.");
+      }
+    };
+
+    handleRedirectResult();
+  }, [router]);
+
   const loginWithProvider = async (provider: AuthProvider, providerName: "google" | "facebook" | "apple") => {
     setError("");
     setLoadingProvider(providerName);
 
     try {
-      await signInWithPopup(auth, provider);
-      router.push("/");
+      const credential = await signInWithPopup(auth, provider);
+      await handleSignedInUser(credential);
     } catch (err: any) {
       console.error(`${providerName} sign in error:`, err); // eslint-disable-line no-console
       if (err.code === "auth/operation-not-supported-in-this-environment" || err.code === "auth/operation-not-allowed") {
@@ -36,6 +90,8 @@ export default function LoginPage() {
         }
       } else if (err.code === "auth/popup-closed-by-user") {
         setError("Popup closed before we could sign you in. Please try again.");
+      } else if (err.code === "auth/cancelled-popup-request") {
+        setError("Popup was cancelled. Please try again.");
       } else {
         setError(err.message || "Social login failed. Please try again.");
       }
