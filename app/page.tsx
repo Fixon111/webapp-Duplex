@@ -17,6 +17,9 @@ interface Dot {
 const styles = `
   .entry-container {
     min-height: 100vh;
+    width: 100vw;
+    padding: 0;
+    margin: 0;
     background-color: #0c1a2b;
     display: flex;
     align-items: center;
@@ -42,6 +45,24 @@ const styles = `
     background-color: #d4a74a;
     border-radius: 50%;
     box-shadow: 0 0 15px rgba(212, 167, 74, 0.8);
+  }
+
+  @media (max-width: 768px) {
+    .entry-container {
+      min-height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    .dots-animation {
+      height: 100vh;
+    }
+
+    .falling-dot {
+      width: 6px;
+      height: 6px;
+      box-shadow: 0 0 8px rgba(212, 167, 74, 0.7);
+    }
   }
 
   @keyframes fall-and-form {
@@ -132,12 +153,17 @@ const generateDotPositions = () => {
   const text = "DUPLEX";
   const dots: Dot[] = [];
   let dotIndex = 0;
-  
-  const centerX = typeof window !== "undefined" ? window.innerWidth / 2 : 400;
-  const centerY = typeof window !== "undefined" ? window.innerHeight / 2 : 300;
-  const spacing = 16; // Space between dots
-  const charSpacing = 40; // Space between characters
-  
+
+  const width = typeof window !== "undefined" ? window.innerWidth : 800;
+  const height = typeof window !== "undefined" ? window.innerHeight : 600;
+
+  const scale = Math.min(1, Math.max(0.5, Math.min(width / 800, height / 700)));
+  const spacing = 16 * scale; // scaled space between dots
+  const charSpacing = 32 * scale; // scaled space between chars
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+
   // Calculate total width needed
   let totalWidth = 0;
   for (const char of text) {
@@ -147,7 +173,7 @@ const generateDotPositions = () => {
       totalWidth += letterPatterns[char][0].length * spacing + charSpacing;
     }
   }
-  
+
   let currentX = centerX - totalWidth / 2;
   
   // Generate dots for each character
@@ -163,12 +189,13 @@ const generateDotPositions = () => {
       for (let col = 0; col < pattern[row].length; col++) {
         if (pattern[row][col]) {
           if (dotIndex < 150) {
+            const letterHeight = letterPatterns[char].length * spacing;
             dots.push({
               id: dotIndex,
               startX: Math.random() * 100,
               startY: -20,
               endX: currentX + col * spacing,
-              endY: centerY - 35 + row * spacing,
+              endY: centerY - letterHeight / 2 + row * spacing,
               delay: Math.random() * 1.2,
             });
             dotIndex++;
